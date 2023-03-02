@@ -4,6 +4,8 @@ const $showsList = $("#showsList");
 const $episodesArea = $("#episodesArea");
 const $searchForm = $("#searchForm");
 const $searchFormInput = $("#searchForm-term");
+const $episodeList = $("#episodesList");
+
 const BASE_URL = "https://api.tvmaze.com/";
 
 // clear placeholder
@@ -19,8 +21,6 @@ $searchFormInput.val("");
 async function getShowsByTerm(searchFormInput) {
   // ADD: Remove placeholder & make request to TVMaze search shows API.
 
-  // let inputValue = $searchFormInput.val();
-
   // https://www.tvmaze.com/search/shows?q=:searchFormInput
 
   const response = await axios.get(
@@ -29,28 +29,23 @@ async function getShowsByTerm(searchFormInput) {
   );
 
   console.log(response.data);
+  //console.log(response.data[0].show.image.original);
 
-  const listOfShows = response.data.map((show) => {
+
+  // change show variable
+  const listOfShows = response.data.map((showAndScore) => {
     return {
-      id: show.show.id,
-      name: show.show.name,
-      summary: show.show.summary,
-      image: show.show.image,
+      id: showAndScore.show.id,
+      name: showAndScore.show.name,
+      summary: showAndScore.show.summary,
+      image: (showAndScore.show.image)
+        ? showAndScore.show.image.original
+        : "https://tinyurl.com/tv-missing",
     }
   });
 
-  console.log("List of shows: " ,listOfShows);
+  console.log(listOfShows);
   return listOfShows;
-
-
-  // return [
-  //   {
-  //     id: ,
-  //     name: ,
-  //     summary: ,
-  //     image: 
-  //   }
-  // ]
 
   // return [
   //   {
@@ -83,10 +78,8 @@ function populateShows(shows) {
       `<div data-show-id="${show.id}" class="Show col-md-12 col-lg-6 mb-4">
          <div class="media">
            <img 
-              srcset="${show.image.original},
-              https://store-images.s-microsoft.com/image/apps.65316.13510798887490672.6e1ebb25-96c8-4504-b714-1f7cbca3c5ad.f9514a23-1eb8-4916-a18e-99b1a9817d15?mode=scale&q=90&h=300&w=300
-              " 
-              alt="Bletchly Circle San Francisco" 
+              src="${show.image}"
+              alt="${show.name}" 
               class="w-25 me-3">
            <div class="media-body">
              <h5 class="text-primary">${show.name}</h5>
@@ -122,12 +115,69 @@ $searchForm.on("submit", async function (evt) {
 });
 
 
+// http://api.tvmaze.com/shows/SHOW-ID-HERE/episodes
+
 /** Given a show ID, get from API and return (promise) array of episodes:
  *      { id, name, season, number }
+ * Returns list of episodes
  */
 
-// async function getEpisodesOfShow(id) { }
+async function getEpisodesOfShow(id) {
+  const response = await axios.get(`${BASE_URL}shows/${id}/episodes`);
 
-/** Write a clear docstring for this function... */
+  console.log("getEpisodesOfShow: ", response);
+  const listOfEpisodes = response.data.map((episode) => {
+    return {
+      id: episode.id,
+      name: episode.name,
+      season: episode.season,
+      number: episode.number,
+    };
+  });
 
-// function populateEpisodes(episodes) { }
+  console.log("list of episodes: ", listOfEpisodes)
+  return listOfEpisodes;
+}
+
+
+/**
+ * Accepts episodes and creates and display list of episodes in the DOM
+ * @param {*} episodes 
+ */
+
+// clear episode list
+function populateEpisodes(episodes) {
+  for (let episode of episodes) {
+    const $episode = (`
+      <li>${episode.name} (season ${episode.season},
+        number ${episode.number})
+      </li>`);
+
+    $episodeList.append($episode);
+  }
+
+  $episodesArea.show();
+
+}
+
+/**
+ * Our event handler and driver function. Gets the id and calls functions
+ * @param {*} evt 
+ * Returns nothing
+ */
+async function getAndShowEpisodes(evt) {
+  evt.preventDefault();
+  $episodeList.html("");
+
+  // not number id, this is string id
+  const id = Number($(evt.target).closest(".Show").data("show-id"));
+  const episodes = await getEpisodesOfShow(id);
+  populateEpisodes(episodes);
+}
+
+$showsList.on("click", ".Show-getEpisodes", getAndShowEpisodes);
+
+
+
+// third function to get id
+
